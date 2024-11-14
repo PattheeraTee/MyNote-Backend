@@ -2,75 +2,66 @@ package main
 
 import (
 	"fmt"
-	"os"
-
+	"log"
+	"miw/adapters/gormRepository"
+	"miw/adapters/httpHandler"
+	"miw/database"
+	"miw/entities"
+	"miw/middleware"
+	"miw/usecases/service"
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v4"
-	"github.com/joho/godotenv"
 )
-
-const (
-	host     = "localhost"  // or the Docker service name if running in another container
-	port     = 5432         // default PostgreSQL port
-	user     = "myuser"     // as defined in docker-compose.yml
-	password = "mypassword" // as defined in docker-compose.yml
-	dbname   = "mydb"       // as defined in docker-compose.yml
-)
-
-func checkMiddleware(c *fiber.Ctx) error {
-	cookie := c.Cookies("jwt")
-	jwtSecret := os.Getenv("JWT_SECRET")
-
-	token, err := jwt.Parse(cookie, func(token *jwt.Token) (interface{}, error) {
-		return []byte(jwtSecret), nil
-	})
-
-	if err != nil || !token.Valid {
-		return c.SendStatus(fiber.StatusUnauthorized)
-	}
-
-	claims := token.Claims.(jwt.MapClaims)
-	userID := claims["user_id"].(float64) // เก็บ user_id จากโทเค็น (float64 เพราะ JSON decode เป็น float)
-
-	// เก็บ user_id ใน Context เพื่อใช้ในแฮนด์เลอร์อื่น ๆ
-	c.Locals("user_id", uint(userID))
-
-	return c.Next()
-}
 
 func main() {
-	err := godotenv.Load()
+	cfg := database.LoadConfig()
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort)
+
+	database, err := database.NewDatabaseConnection(dsn)
 	if err != nil {
-		fmt.Println("Error loading .env file")
+		log.Fatal("Failed to connect to the database:", err)
 	}
-	db := setupDatabase()
+
+	// สร้างตารางอัตโนมัติโดยใช้ AutoMigrate
+	err = database.AutoMigrate(
+		&entities.User{},
+		&entities.Note{},
+		&entities.Reminder{},
+		&entities.Tag{},
+		&entities.NoteTag{},
+		&entities.ShareNote{},
+		&entities.Event{},
+	)
+	
+	if err != nil {
+		log.Fatal("Failed to migrate tables:", err)
+	}
+
+	// สร้าง Repository และ Service
+	userRepo := gormRepository.NewGormUserRepository(database)
+
+	userService := service.NewUserService(userRepo)
+
+	// สร้าง Handlers สำหรับ HTTP
+	userHandler := httpHandler.NewHttpUserHandler(userService)
+
+	// สร้าง Fiber App และเพิ่ม Middleware
 	app := fiber.New()
 
-	app.Post("/register", func(c *fiber.Ctx) error {
-		return registerHandler(db, c)
-	})
+	// ตั้งค่า API Routes สำหรับ User
+	app.Post("/register", userHandler.Register)
+	app.Post("/login", userHandler.Login)
+	
+	app.Post("/forgot-password", userHandler.ForgotPassword)
+	app.Post("/reset-password",userHandler.ResetPassword)
 
-	app.Post("/login", func(c *fiber.Ctx) error {
-		return loginHandler(db, c)
-	})
+	app.Get("/user/:id",middleware.AuthMiddleware, userHandler.GetUser) // ดูข้อมูล user
+	app.Put("/user/:id",middleware.AuthMiddleware, userHandler.ChangeUsername) // แก้ไข username
 
-	app.Use(checkMiddleware)
 
-	app.Get("/user/:id", func(c *fiber.Ctx) error {
-		return getUserHandler(db, c)
-	})
+	// เริ่มเซิร์ฟเวอร์
+	if err := app.Listen(":8000"); err != nil {
+		log.Fatal("Failed to start server:", err)
+	}
 
-	app.Put("/user/:id", func(c *fiber.Ctx) error {
-		return changeUsernameHandler(db, c)
-	})
-
-	app.Post("/forgot-password", func(c *fiber.Ctx) error {
-		return forgotPasswordHandler(db, c)
-	})
-
-	app.Post("/reset-password", func(c *fiber.Ctx) error {
-		return resetPasswordHandler(db, c)
-	})
-
-	app.Listen(":8000")
 }
