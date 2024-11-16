@@ -14,7 +14,11 @@ func NewGormUserRepository(db *gorm.DB) *GormUserRepository {
 }
 
 func (r *GormUserRepository) CreateUser(user *entities.User) error {
-	return r.db.Create(user).Error
+	// บันทึก Note ลงในฐานข้อมูล
+	if err := r.db.Create(user).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *GormUserRepository) UpdateUser(user *entities.User) error {

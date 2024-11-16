@@ -1,20 +1,20 @@
 package entities
 
 type Note struct {
-	NoteID      uint      `json:"note_id" gorm:"primaryKey"`
-	UserID      uint      `json:"user_id"`
-	Title       string    `json:"title"`
-	Content     string    `json:"content"`
-	Color       string    `json:"color"`
-	Priority    int       `json:"priority"`
-	IsTodo      bool      `json:"is_todo"`
-	TodoStatus  bool      `json:"todo_status"`
-	CreatedAt   string    `json:"created_at"`
-	UpdatedAt   string    `json:"updated_at"`
-	DeletedAt   string    `json:"deleted_at"`
-	Tags        []Tag     `gorm:"many2many:note_tags"`
-	Reminders   []Reminder `gorm:"foreignKey:NoteID"`
-	Event       Event     `gorm:"foreignKey:NoteID;constraint:OnDelete:CASCADE;"`
+	NoteID     uint       `json:"note_id" gorm:"primaryKey"`
+	UserID     uint       `json:"user_id"`
+	Title      string     `json:"title"`
+	Content    string     `json:"content"`
+	Color      string     `json:"color"`
+	Priority   int        `json:"priority"`
+	IsTodo     bool       `json:"is_todo"`
+	TodoStatus bool       `json:"todo_status"`
+	CreatedAt  string     `json:"created_at"`
+	UpdatedAt  string     `json:"updated_at"`
+	DeletedAt  string     `json:"deleted_at"`
+	Tags       []Tag      `gorm:"many2many:note_tags;joinForeignKey:NoteID;joinReferences:TagID;constraint:OnDelete:CASCADE;"`
+	Reminders  []Reminder `gorm:"foreignKey:NoteID"`
+	Event      Event      `gorm:"foreignKey:NoteID;constraint:OnDelete:CASCADE;"`
 }
 
 type Reminder struct {
@@ -25,21 +25,16 @@ type Reminder struct {
 	Frequency    string `json:"frequency"`
 }
 
-type NoteTag struct {
-	NoteID uint `json:"note_id"`
-	TagID  uint `json:"tag_id"`
-}
-
 type Tag struct {
-	TagID   uint    `json:"tag_id" gorm:"primaryKey"`
-	TagName string  `json:"tag_name"`
-	Notes   []Note  `gorm:"many2many:note_tags"`
+	TagID   uint   `json:"tag_id" gorm:"primaryKey"`
+	TagName string `json:"tag_name" gorm:"unique"`
+	Notes   []Note `gorm:"many2many:note_tags;joinForeignKey:TagID;joinReferences:NoteID;constraint:OnDelete:CASCADE;"`
 }
 
 type ShareNote struct {
-	ShareNoteID uint   `json:"share_note_id" gorm:"primaryKey"`
-	NoteID      uint   `json:"note_id"`
-	SharedWith  uint   `json:"shared_with"`
+	ShareNoteID uint `json:"share_note_id" gorm:"primaryKey"`
+	NoteID      uint `json:"note_id"`
+	SharedWith  uint `json:"shared_with"`
 }
 
 type Event struct {
