@@ -4,6 +4,7 @@ import (
 	"miw/entities"
 	"miw/usecases/repository"
 	"time"
+	"fmt"
 )
 
 type NoteUseCase interface {
@@ -11,6 +12,9 @@ type NoteUseCase interface {
 	GetAllNote(userid uint) ([]entities.Note, error)
 	UpdateNote(noteid uint, note *entities.Note) (*entities.Note, error)
 	AddTagToNote(noteID uint, tagIDs uint) error // รองรับหลายแท็ก
+	RemoveTagFromNote(noteID uint, tagID uint) error
+	DeleteNoteById(noteID uint) error
+	RestoreNoteById(noteID uint) error
 }
 
 type NoteService struct {
@@ -33,10 +37,6 @@ func (s *NoteService) CreateNote(note *entities.Note) error {
 
 func (s *NoteService) GetAllNote(userid uint) ([]entities.Note, error) {
 	return s.repo.GetAllNoteByUserId(userid)
-}
-
-func (s *NoteService) AddTagToNote(noteID uint, tagID uint) error {
-	return s.repo.AddTagToNote(noteID, tagID)
 }
 
 func (s *NoteService) UpdateNote(noteID uint, note *entities.Note) (*entities.Note, error) {
@@ -80,4 +80,30 @@ func (s *NoteService) UpdateNote(noteID uint, note *entities.Note) (*entities.No
 
 	// ดึงข้อมูลโน้ตที่อัปเดตกลับมาเพื่อส่งต่อ
 	return s.repo.GetNoteById(noteID)
+}
+
+func (s *NoteService) AddTagToNote(noteID uint, tagID uint) error {
+	err := s.repo.AddTagToNote(noteID, tagID)
+    if err != nil {
+        return fmt.Errorf("failed to add tag to note: %v", err)
+    }
+    return nil
+}
+
+func (s *NoteService) RemoveTagFromNote(noteID uint, tagID uint) error {
+    return s.repo.RemoveTagFromNote(noteID, tagID)
+}
+
+func (s *NoteService) DeleteNoteById(noteID uint) error {
+    if err := s.repo.DeleteNoteById(noteID); err != nil {
+        return fmt.Errorf("failed to delete note: %v", err)
+    }
+    return nil
+}
+
+func (s *NoteService) RestoreNoteById(noteID uint) error {
+    if err := s.repo.RestoreNoteById(noteID); err != nil {
+        return fmt.Errorf("failed to restore note: %v", err)
+    }
+    return nil
 }

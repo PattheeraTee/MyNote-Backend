@@ -72,8 +72,10 @@ func main() {
 	app.Post("/note", noteHandler.CreateNoteHandler)    // สร้าง note	
 	app.Get("/note/:id", noteHandler.GetAllNoteHandler) // ดู note
 	app.Put("/note/:id", noteHandler.UpdateNoteHandler) // แก้ไข note
-	app.Post("/notes/add-tag", noteHandler.AddTagToNoteHandler)
-
+	app.Post("/note/add-tag", noteHandler.AddTagToNoteHandler)
+	app.Post("/note/remove-tag", noteHandler.RemoveTagFromNoteHandler)
+	app.Delete("/note/:id", noteHandler.DeleteNoteHandler) // ลบ note
+	app.Put("/note/restore/:id", noteHandler.RestoreNoteHandler)
 
 	//********************************************
 	// Tag

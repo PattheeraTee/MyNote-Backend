@@ -135,14 +135,14 @@ func (h *HttpNoteHandler) AddTagToNoteHandler(c *fiber.Ctx) error {
 
     // Parse JSON body into the request struct
     if err := c.BodyParser(&request); err != nil {
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
     }
 
     // Call the use case to add a single tag to the note
     err := h.noteUseCase.AddTagToNote(request.NoteID, request.TagID)
     if err != nil {
-        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-            "error": fmt.Sprintf("Failed to add tag %d to note %d: %v", request.TagID, request.NoteID, err),
+        return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+            "error": err.Error(),
         })
     }
 
@@ -150,3 +150,58 @@ func (h *HttpNoteHandler) AddTagToNoteHandler(c *fiber.Ctx) error {
     return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Tag added successfully"})
 }
 
+
+func (h *HttpNoteHandler) RemoveTagFromNoteHandler(c *fiber.Ctx) error {
+    var request struct {
+        NoteID uint `json:"note_id"`
+        TagID  uint `json:"tag_id"`
+    }
+
+    // Parse the request body
+    if err := c.BodyParser(&request); err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+    }
+
+    // Call the use case to remove the tag from the note
+    if err := h.noteUseCase.RemoveTagFromNote(request.NoteID, request.TagID); err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": fmt.Sprintf("Failed to remove tag %d from note %d: %v", request.TagID, request.NoteID, err),
+        })
+    }
+
+    return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Tag removed successfully"})
+}
+
+func (h *HttpNoteHandler) DeleteNoteHandler(c *fiber.Ctx) error {
+    // ดึง Note ID จากพารามิเตอร์
+    noteID, err := strconv.Atoi(c.Params("id"))
+    if err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid note ID"})
+    }
+
+    // เรียกใช้ Use Case เพื่อลบโน้ต
+    if err := h.noteUseCase.DeleteNoteById(uint(noteID)); err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": fmt.Sprintf("Failed to delete note with ID %d: %v", noteID, err),
+        })
+    }
+
+    return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Note deleted successfully"})
+}
+
+func (h *HttpNoteHandler) RestoreNoteHandler(c *fiber.Ctx) error {
+    // ดึง Note ID จากพารามิเตอร์
+    noteID, err := strconv.Atoi(c.Params("id"))
+    if err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid note ID"})
+    }
+
+    // เรียกใช้ Use Case เพื่อกู้คืนโน้ต
+    if err := h.noteUseCase.RestoreNoteById(uint(noteID)); err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": fmt.Sprintf("Failed to restore note with ID %d: %v", noteID, err),
+        })
+    }
+
+    return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Note restored successfully"})
+}

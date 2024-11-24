@@ -27,7 +27,13 @@ func (r *GormUserRepository) UpdateUser(user *entities.User) error {
 
 func (r *GormUserRepository) GetUserById(id uint) (*entities.User, error) {
 	var user entities.User
-	if err := r.db.First(&user, id).Error; err != nil {
+	if err := r.db.Preload("Notes").
+		Preload("Notes.Tags", func(db *gorm.DB) *gorm.DB {
+            return db.Select("tag_id, tag_name") // ไม่ดึง Notes ใน Tags
+        }).
+        Preload("Notes.Reminders").
+        Preload("Notes.Event").
+	First(&user, id).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil

@@ -10,8 +10,7 @@ type NoteRepository interface {
 	GetAllNoteByUserId(id uint) ([]entities.Note, error)
 	GetNoteById(id uint) (*entities.Note, error)
 	DeleteNoteById(id uint) error
+	RestoreNoteById(id uint) error 
 	AddTagToNote(noteID uint, tagID uint) error // รองรับ tagID ทีละตัว
-	// CreateTag(tag *entities.Tag) error
-	// AddTagToNote(noteId uint, tagId uint) error
-	// GetTagById(id uint) (*entities.Tag, error)
+	RemoveTagFromNote(noteID uint, tagID uint) error
 }
