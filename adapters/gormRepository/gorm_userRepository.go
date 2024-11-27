@@ -31,7 +31,7 @@ func (r *GormUserRepository) GetUserById(id uint) (*entities.User, error) {
 		Preload("Notes.Tags", func(db *gorm.DB) *gorm.DB {
             return db.Select("tag_id, tag_name") // ไม่ดึง Notes ใน Tags
         }).
-        Preload("Notes.Reminders").
+        Preload("Notes.Reminder").
         Preload("Notes.Event").
 	First(&user, id).Error; err != nil {
 		return nil, err

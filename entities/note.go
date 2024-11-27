@@ -8,13 +8,23 @@ type Note struct {
 	Color      string     `json:"color"`
 	Priority   int        `json:"priority"`
 	IsTodo     bool       `json:"is_todo"`
-	TodoStatus bool       `json:"todo_status"`
+	TodoItems  []ToDo     `gorm:"foreignKey:NoteID" json:"todo_items"` // เชื่อมโยงกับ ToDo
+	IsAllDone 	bool 	  `json:"is_all_done"`
 	CreatedAt  string     `json:"created_at"`
 	UpdatedAt  string     `json:"updated_at"`
 	DeletedAt  string     `json:"deleted_at"`
 	Tags       []Tag      `gorm:"many2many:note_tags;joinForeignKey:NoteID;joinReferences:TagID;constraint:OnDelete:CASCADE;"`
-	Reminders  []Reminder `gorm:"foreignKey:NoteID"`
+	Reminder  []Reminder `gorm:"foreignKey:NoteID"`
 	Event      Event      `gorm:"foreignKey:NoteID;constraint:OnDelete:CASCADE;"`
+}
+
+type ToDo struct {
+    ID        uint   `json:"id" gorm:"primaryKey"`
+    NoteID    uint   `json:"note_id"`           // เชื่อมโยงกับ Note
+    Content   string `json:"content"`           // เนื้อหาของ To-Do
+    IsDone    bool   `json:"is_done"`           // สถานะเสร็จสิ้นหรือไม่
+    CreatedAt string `json:"created_at"`
+    UpdatedAt string `json:"updated_at"`
 }
 
 type Reminder struct {
@@ -28,7 +38,8 @@ type Reminder struct {
 type Tag struct {
 	TagID   uint   `json:"tag_id" gorm:"primaryKey"`
 	TagName string `json:"tag_name" gorm:"unique"`
-	Notes   []Note `gorm:"many2many:note_tags;joinForeignKey:TagID;joinReferences:NoteID;constraint:OnDelete:CASCADE;"`
+	UserID  uint   `json:"user_id"`
+    Notes   []Note `gorm:"many2many:note_tags;joinForeignKey:TagID;joinReferences:NoteID;constraint:OnDelete:CASCADE;"`
 }
 
 type ShareNote struct {

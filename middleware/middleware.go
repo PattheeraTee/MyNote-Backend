@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
+	"fmt"
 )
 
 // AuthMiddleware ตรวจสอบว่าโทเค็น JWT ถูกต้องและยังไม่หมดอายุ
@@ -35,14 +36,19 @@ func AuthMiddleware(c *fiber.Ctx) error {
 	userIDFloat := claims["user_id"].(float64)
 	userID := uint(userIDFloat)
 
-	// ดึง ID ที่ส่งมาใน URL และตรวจสอบว่าตรงกับ user_id หรือไม่
-	requestedID, err := strconv.Atoi(c.Params("id"))
-	if err != nil || userID != uint(requestedID) {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "You are not authorized to access this resource"})
-	}
-
 	// เพิ่ม user_id ใน Context เพื่อให้ handler ใช้ได้
 	c.Locals("user_id", userID)
+	fmt.Printf("Middleware: user_id = %v\n", c.Locals("user_id"))
+
+
+	// ตรวจสอบ `id` ใน URL (ถ้ามี)
+	if c.Params("userid") != "" {
+		requestedID, err := strconv.Atoi(c.Params("userid"))
+		if err != nil || userID != uint(requestedID) {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "You are not authorized to access this resource"})
+		}
+	}
 
 	return c.Next()
 }
+

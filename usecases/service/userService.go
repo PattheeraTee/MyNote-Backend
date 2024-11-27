@@ -14,10 +14,10 @@ import (
 type UserUseCase interface {
 	Register(user *entities.User) error
 	Login(email, password string) (string, error)
-	ChangeUsername(id uint, newUsername string) error
+	ChangeUsername(userid uint, newUsername string) error
 	SendResetPasswordEmail(email string) error
 	ResetPassword(token string, newPassword string) error
-	GetUser(id uint) (*entities.User, error)
+	GetUser(userID uint) (*entities.User, error)
 }
 
 type UserService struct {
@@ -30,13 +30,20 @@ func NewUserService(repo repository.UserRepository) *UserService {
 
 // Register a new user
 func (s *UserService) Register(user *entities.User) error {
+	// ตรวจสอบให้แน่ใจว่า UserID ถูกรีเซ็ตเพื่อไม่ให้ผู้ใช้กำหนดเอง
+	user.UserID = 0
+
+	// แฮชรหัสผ่านก่อนบันทึก
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
 	user.Password = string(hashedPassword)
+
+	// บันทึกข้อมูลผู้ใช้
 	return s.repo.CreateUser(user)
 }
+
 
 // Login a user and return JWT token
 func (s *UserService) Login(email, password string) (string, error) {
@@ -91,8 +98,8 @@ func (s *UserService) sendEmail(email, resetURL string) error {
 }
 
 // ChangeUsername changes the username of a user given their ID
-func (s *UserService) ChangeUsername(id uint, newUsername string) error {
-	user, err := s.repo.GetUserById(id)
+func (s *UserService) ChangeUsername(userID uint, newUsername string) error {
+	user, err := s.repo.GetUserById(userID)
 	if err != nil {
 		return err
 	}
@@ -140,6 +147,6 @@ func (s *UserService) ResetPassword(tokenString string, newPassword string) erro
 	return s.repo.UpdateUser(user)
 }
 
-func (s *UserService) GetUser(id uint) (*entities.User, error) {
-	return s.repo.GetUserById(id)
+func (s *UserService) GetUser(userID uint) (*entities.User, error) {
+	return s.repo.GetUserById(userID)
 }

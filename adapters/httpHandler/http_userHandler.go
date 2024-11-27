@@ -18,16 +18,23 @@ func NewHttpUserHandler(useCase service.UserUseCase) *HttpUserHandler {
 
 func (h *HttpUserHandler) Register(c *fiber.Ctx) error {
 	user := new(entities.User)
+
+	// รับข้อมูลผู้ใช้จาก Body และกรอง UserID
 	if err := c.BodyParser(user); err != nil {
-		return c.SendStatus(fiber.StatusBadRequest)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
+	// ตรวจสอบให้แน่ใจว่า UserID เป็นค่าเริ่มต้น (ไม่กำหนดเอง)
+	user.UserID = 0
+
+	// เรียกใช้ฟังก์ชันสร้างผู้ใช้
 	if err := h.userUseCase.Register(user); err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Could not register user")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not register user"})
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "User registered successfully"})
 }
+
 
 func (h *HttpUserHandler) Login(c *fiber.Ctx) error {
 	data := new(struct {
@@ -99,7 +106,7 @@ func (h *HttpUserHandler) ResetPassword(c *fiber.Ctx) error {
 }
 
 func (h *HttpUserHandler) GetUser(c *fiber.Ctx) error {
-	id,err := strconv.Atoi(c.Params("id"))
+	id,err := strconv.Atoi(c.Params("userid"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString("Invalid ID")
 	}
@@ -112,7 +119,7 @@ func (h *HttpUserHandler) GetUser(c *fiber.Ctx) error {
 }
 
 func (h *HttpUserHandler) ChangeUsername(c *fiber.Ctx) error {
-	id,err := strconv.Atoi(c.Params("id"))
+	id,err := strconv.Atoi(c.Params("userid"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString("Invalid ID")
 	}

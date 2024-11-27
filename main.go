@@ -31,6 +31,7 @@ func main() {
 		// &entities.NoteTag{},
 		&entities.ShareNote{},
 		&entities.Event{},
+		&entities.ToDo{},
 	)
 
 	if err != nil {
@@ -63,30 +64,28 @@ func main() {
 	app.Post("/forgot-password", userHandler.ForgotPassword)
 	app.Post("/reset-password", userHandler.ResetPassword)
 
-	app.Get("/user/:id", middleware.AuthMiddleware, userHandler.GetUser)        // ดูข้อมูล user
-	app.Put("/user/:id", middleware.AuthMiddleware, userHandler.ChangeUsername) // แก้ไข username
+	app.Get("/user/:userid", middleware.AuthMiddleware, userHandler.GetUser)        // ดูข้อมูล user
+	app.Put("/user/:userid", middleware.AuthMiddleware, userHandler.ChangeUsername) // แก้ไข username
 
 	//********************************************
 	// Note
 	//********************************************
-	app.Post("/note", noteHandler.CreateNoteHandler)    // สร้าง note	
-	app.Get("/note/:id", noteHandler.GetAllNoteHandler) // ดู note
-	app.Put("/note/:id", noteHandler.UpdateNoteHandler) // แก้ไข note
-	app.Post("/note/add-tag", noteHandler.AddTagToNoteHandler)
-	app.Post("/note/remove-tag", noteHandler.RemoveTagFromNoteHandler)
-	app.Delete("/note/:id", noteHandler.DeleteNoteHandler) // ลบ note
-	app.Put("/note/restore/:id", noteHandler.RestoreNoteHandler)
+	app.Post("/note",middleware.AuthMiddleware, noteHandler.CreateNoteHandler)    // สร้าง note	
+	app.Get("/note/:userid",middleware.AuthMiddleware, noteHandler.GetAllNoteHandler) // ดู note
+	app.Put("/note/:noteid", middleware.AuthMiddleware,noteHandler.UpdateNoteHandler) // แก้ไข note
+	app.Post("/note/add-tag",middleware.AuthMiddleware, noteHandler.AddTagToNoteHandler)
+	app.Post("/note/remove-tag",middleware.AuthMiddleware,  noteHandler.RemoveTagFromNoteHandler)
+	app.Delete("/note/:noteid",middleware.AuthMiddleware, noteHandler.DeleteNoteHandler) // ลบ note
+	app.Put("/note/restore/:noteid",middleware.AuthMiddleware, noteHandler.RestoreNoteHandler)
 
 	//********************************************
 	// Tag
 	//********************************************
-	app.Post("/tag", tagHandler.CreateTagHandler) // สร้าง tag
-	app.Get("/tag/:id", tagHandler.GetTagHandler)  // ดู tag
-
-	// app.Post("/note/:note_id/tag/:tag_id", noteHandler.AddTagToNoteHandler)
-
-	// app.Get("/notes/:id", noteHandler.GetNoteByIdHandler)
-
+	app.Post("/tag", middleware.AuthMiddleware, tagHandler.CreateTagHandler) // สร้าง tag
+	app.Get("/tag/:tagid",middleware.AuthMiddleware,  tagHandler.GetTagHandler) // ดู tag
+	app.Put("/tag/:tagid", middleware.AuthMiddleware, tagHandler.UpdateTagNameHandler) // แก้ไขชื่อ tag
+	app.Delete("/tag/:tagid", middleware.AuthMiddleware, tagHandler.DeleteTagHandler) // ลบ tag
+	
 	// เริ่มเซิร์ฟเวอร์
 	if err := app.Listen(":8000"); err != nil {
 		log.Fatal("Failed to start server:", err)
