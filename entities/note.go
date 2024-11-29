@@ -8,7 +8,7 @@ type Note struct {
 	Color      string     `json:"color"`
 	Priority   int        `json:"priority"`
 	IsTodo     bool       `json:"is_todo"`
-	TodoItems  []ToDo     `gorm:"foreignKey:NoteID" json:"todo_items"` // เชื่อมโยงกับ ToDo
+	TodoItems  []ToDo     `gorm:"foreignKey:NoteID;constraint:OnDelete:CASCADE;" json:"todo_items"` // เชื่อมโยงกับ ToDo
 	IsAllDone 	bool 	  `json:"is_all_done"`
 	CreatedAt  string     `json:"created_at"`
 	UpdatedAt  string     `json:"updated_at"`

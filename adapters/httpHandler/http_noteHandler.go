@@ -1,31 +1,29 @@
 package httpHandler
 
 import (
+	"fmt"
 	"miw/entities"
 	"miw/usecases/service"
 	"strconv"
 	"github.com/gofiber/fiber/v2"
-	"fmt"
-	// "strings"
-	// "time"
 )
 
 type NoteResponse struct {
-	NoteID     uint                `json:"note_id"`
-	UserID     uint                `json:"user_id"`
-	Title      string              `json:"title"`
-	Content    string              `json:"content,omitempty"` // ซ่อนถ้าไม่มีค่า
-	Color      string              `json:"color"`
-	Priority   int                 `json:"priority"`
-	IsTodo     bool                `json:"is_todo"`
-	IsAllDone  bool                `json:"is_all_done"`       // เพิ่มฟิลด์นี้
-	TodoItems  []ToDoResponse      `json:"todo_items"`        // เพิ่มรายการ ToDo
-	CreatedAt  string              `json:"created_at"`
-	UpdatedAt  string              `json:"updated_at"`
-	DeletedAt  string              `json:"deleted_at,omitempty"` // ซ่อนถ้าไม่มีค่า
-	Tags       []string            `json:"tags"`
-	Reminder   []entities.Reminder `json:"reminder"`
-	Event      interface{}         `json:"event"`
+	NoteID    uint                `json:"note_id"`
+	UserID    uint                `json:"user_id"`
+	Title     string              `json:"title"`
+	Content   string              `json:"content,omitempty"` // ซ่อนถ้าไม่มีค่า
+	Color     string              `json:"color"`
+	Priority  int                 `json:"priority"`
+	IsTodo    bool                `json:"is_todo"`
+	IsAllDone bool                `json:"is_all_done"` // เพิ่มฟิลด์นี้
+	TodoItems []ToDoResponse      `json:"todo_items"`  // เพิ่มรายการ ToDo
+	CreatedAt string              `json:"created_at"`
+	UpdatedAt string              `json:"updated_at"`
+	DeletedAt string              `json:"deleted_at,omitempty"` // ซ่อนถ้าไม่มีค่า
+	Tags      []string            `json:"tags"`
+	Reminder  []entities.Reminder `json:"reminder"`
+	Event     interface{}         `json:"event"`
 }
 
 type ReminderResponse struct {
@@ -41,7 +39,6 @@ type ToDoResponse struct {
 	IsDone  bool   `json:"is_done"`
 }
 
-
 type HttpNoteHandler struct {
 	noteUseCase service.NoteUseCase
 }
@@ -56,6 +53,14 @@ func (h *HttpNoteHandler) CreateNoteHandler(c *fiber.Ctx) error {
 	// รับข้อมูลโน้ตจาก Body ของ request
 	if err := c.BodyParser(note); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString("Invalid request body")
+	}
+
+	// Validation: ถ้ามี `todo_items` ต้องไม่มี `content` และถ้าไม่มี `todo_items` ต้องมี `content`
+	if len(note.TodoItems) > 0 && note.Content != "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Note cannot have both content and todo_items"})
+	}
+	if len(note.TodoItems) == 0 && note.Content == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Note must have either content or todo_items"})
 	}
 
 	// ดึง UserID จาก Context (Middleware)
@@ -108,21 +113,21 @@ func (h *HttpNoteHandler) GetAllNoteHandler(c *fiber.Ctx) error {
 		}
 
 		response = append(response, NoteResponse{
-			NoteID:     note.NoteID,
-			UserID:     note.UserID,
-			Title:      note.Title,
-			Content:    note.Content,
-			Color:      note.Color,
-			Priority:   note.Priority,
-			IsTodo:     note.IsTodo,
-			IsAllDone:  note.IsAllDone,
-			TodoItems:  todoResponses,
-			CreatedAt:  note.CreatedAt,
-			UpdatedAt:  note.UpdatedAt,
-			DeletedAt:  note.DeletedAt,
-			Tags:       tags,
-			Reminder:   note.Reminder,
-			Event:      note.Event,
+			NoteID:    note.NoteID,
+			UserID:    note.UserID,
+			Title:     note.Title,
+			Content:   note.Content,
+			Color:     note.Color,
+			Priority:  note.Priority,
+			IsTodo:    note.IsTodo,
+			IsAllDone: note.IsAllDone,
+			TodoItems: todoResponses,
+			CreatedAt: note.CreatedAt,
+			UpdatedAt: note.UpdatedAt,
+			DeletedAt: note.DeletedAt,
+			Tags:      tags,
+			Reminder:  note.Reminder,
+			Event:     note.Event,
 		})
 	}
 
@@ -131,137 +136,211 @@ func (h *HttpNoteHandler) GetAllNoteHandler(c *fiber.Ctx) error {
 	})
 }
 
+func (h *HttpNoteHandler) UpdateColorHandler(c *fiber.Ctx) error {
+	noteID, _ := strconv.Atoi(c.Params("noteid"))
+	userID, _ := c.Locals("user_id").(uint)
 
-func (h *HttpNoteHandler) UpdateNoteHandler(c *fiber.Ctx) error {
-	noteID, err := strconv.Atoi(c.Params("noteid"))
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid note ID"})
-	}
-
-	note := new(entities.Note)
-	if err := c.BodyParser(note); err != nil {
+	data := new(struct {
+		Color string `json:"color"`
+	})
+	if err := c.BodyParser(data); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
+	err := h.noteUseCase.UpdateColor(uint(noteID), userID, data.Color)
+	if err != nil {
+		if err.Error() == "note not found or does not belong to the user" {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "You are not authorized to update this note"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update color"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Color updated successfully"})
+}
+
+func (h *HttpNoteHandler) UpdatePriorityHandler(c *fiber.Ctx) error {
+	noteID, _ := strconv.Atoi(c.Params("noteid"))
+	userID, _ := c.Locals("user_id").(uint)
+
+	data := new(struct {
+		Priority int `json:"priority"`
+	})
+	if err := c.BodyParser(data); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	err := h.noteUseCase.UpdatePriority(uint(noteID), userID, data.Priority)
+	if err != nil {
+		if err.Error() == "note not found or does not belong to the user" {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "You are not authorized to update this note"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update priority"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Priority updated successfully"})
+}
+
+func (h *HttpNoteHandler) UpdateTitleAndContentHandler(c *fiber.Ctx) error {
+	noteID, _ := strconv.Atoi(c.Params("noteid"))
+	userID, _ := c.Locals("user_id").(uint)
+
+	data := new(struct {
+		Title     string          `json:"title"`
+		Content   string          `json:"content"`
+		TodoItems []entities.ToDo `json:"todo_items"`
+	})
+	if err := c.BodyParser(data); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	// Validation: ห้ามส่ง content และ todo_items พร้อมกัน
+	if len(data.TodoItems) > 0 && data.Content != "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Note cannot have both content and todo_items"})
+	}
+
+	// เรียก UseCase
+	err := h.noteUseCase.UpdateTitleAndContent(uint(noteID), userID, data.Title, data.Content, data.TodoItems)
+	if err != nil {
+		if err.Error() == "note not found or does not belong to the user" {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "You are not authorized to update this note"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"message": "Title/Content updated successfully"})
+}
+
+
+func (h *HttpNoteHandler) UpdateStatusHandler(c *fiber.Ctx) error {
+	noteID, _ := strconv.Atoi(c.Params("noteid"))
+	userID, _ := c.Locals("user_id").(uint)
+
+	data := new(struct {
+		IsTodo    *bool `json:"is_todo"`     // ใช้ pointer เพื่อระบุว่าถูกส่งมาหรือไม่
+		IsAllDone *bool `json:"is_all_done"` // ใช้ pointer เพื่อระบุว่าถูกส่งมาหรือไม่
+	})
+	if err := c.BodyParser(data); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	// Validation: ต้องส่งอย่างน้อยหนึ่งค่า
+	if data.IsTodo == nil && data.IsAllDone == nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "At least one of 'is_todo' or 'is_all_done' must be provided"})
+	}
+
+	// เรียก Use Case
+	err := h.noteUseCase.UpdateStatus(uint(noteID), userID, data.IsTodo, data.IsAllDone)
+	if err != nil {
+		if err.Error() == "note not found or does not belong to the user" {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "You are not authorized to update this note"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update status"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Status updated successfully"})
+}
+
+
+func (h *HttpNoteHandler) AddTagToNoteHandler(c *fiber.Ctx) error {
+	var request struct {
+		NoteID uint `json:"note_id"`
+		TagID  uint `json:"tag_id"`
+	}
+
+	// รับข้อมูลจาก Body
+	if err := c.BodyParser(&request); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	// ดึง UserID จาก Context
 	userID, ok := c.Locals("user_id").(uint)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	updatedNote, err := h.noteUseCase.UpdateNote(uint(noteID), note, userID)
-	if err != nil {
-		if err.Error() == "note not found or does not belong to the user" {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "You are not authorized to update this note"})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not update note"})
+	// เรียกใช้ Service Layer
+	if err := h.noteUseCase.AddTagToNote(request.NoteID, request.TagID, userID); err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.JSON(updatedNote)
-}
-
-
-func (h *HttpNoteHandler) AddTagToNoteHandler(c *fiber.Ctx) error {
-    var request struct {
-        NoteID uint `json:"note_id"`
-        TagID  uint `json:"tag_id"`
-    }
-
-    // รับข้อมูลจาก Body
-    if err := c.BodyParser(&request); err != nil {
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
-    }
-
-    // ดึง UserID จาก Context
-    userID, ok := c.Locals("user_id").(uint)
-    if !ok {
-        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-    }
-
-    // เรียกใช้ Service Layer
-    if err := h.noteUseCase.AddTagToNote(request.NoteID, request.TagID, userID); err != nil {
-        return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
-    }
-
-    return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Tag added successfully"})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Tag added successfully"})
 }
 
 func (h *HttpNoteHandler) RemoveTagFromNoteHandler(c *fiber.Ctx) error {
-    var request struct {
-        NoteID uint `json:"note_id"`
-        TagID  uint `json:"tag_id"`
-    }
+	var request struct {
+		NoteID uint `json:"note_id"`
+		TagID  uint `json:"tag_id"`
+	}
 
-    // Parse the request body
-    if err := c.BodyParser(&request); err != nil {
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
-    }
+	// Parse the request body
+	if err := c.BodyParser(&request); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
 
-    // ดึง UserID จาก Context
-    userID, ok := c.Locals("user_id").(uint)
-    if !ok {
-        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-    }
+	// ดึง UserID จาก Context
+	userID, ok := c.Locals("user_id").(uint)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
 
-    // Call the use case to remove the tag from the note
-    if err := h.noteUseCase.RemoveTagFromNote(request.NoteID, request.TagID, userID); err != nil {
-        return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-            "error": fmt.Sprintf("Failed to remove tag %d from note %d: %v", request.TagID, request.NoteID, err),
-        })
-    }
+	// Call the use case to remove the tag from the note
+	if err := h.noteUseCase.RemoveTagFromNote(request.NoteID, request.TagID, userID); err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to remove tag %d from note %d: %v", request.TagID, request.NoteID, err),
+		})
+	}
 
-    return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Tag removed successfully"})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Tag removed successfully"})
 }
 
-
 func (h *HttpNoteHandler) DeleteNoteHandler(c *fiber.Ctx) error {
-    // ดึง Note ID จากพารามิเตอร์
-    noteID, err := strconv.Atoi(c.Params("noteid"))
-    if err != nil {
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid note ID"})
-    }
+	// ดึง Note ID จากพารามิเตอร์
+	noteID, err := strconv.Atoi(c.Params("noteid"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid note ID"})
+	}
 
-    // ดึง UserID จาก Context
-    userID, ok := c.Locals("user_id").(uint)
-    if !ok {
-        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-    }
+	// ดึง UserID จาก Context
+	userID, ok := c.Locals("user_id").(uint)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
 
-    // เรียกใช้ Use Case เพื่อลบโน้ต
-    if err := h.noteUseCase.DeleteNoteById(uint(noteID), userID); err != nil {
-        if err.Error() == "note not found or does not belong to the user" {
-            return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "You are not authorized to delete this note"})
-        }
-        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-            "error": fmt.Sprintf("Failed to delete note with ID %d: %v", noteID, err),
-        })
-    }
+	// เรียกใช้ Use Case เพื่อลบโน้ต
+	if err := h.noteUseCase.DeleteNoteById(uint(noteID), userID); err != nil {
+		if err.Error() == "note not found or does not belong to the user" {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "You are not authorized to delete this note"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to delete note with ID %d: %v", noteID, err),
+		})
+	}
 
-    return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Note deleted successfully"})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Note deleted successfully"})
 }
 
 func (h *HttpNoteHandler) RestoreNoteHandler(c *fiber.Ctx) error {
-    // ดึง Note ID จากพารามิเตอร์
-    noteID, err := strconv.Atoi(c.Params("noteid"))
-    if err != nil {
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid note ID"})
-    }
+	// ดึง Note ID จากพารามิเตอร์
+	noteID, err := strconv.Atoi(c.Params("noteid"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid note ID"})
+	}
 
-    // ดึง UserID จาก Context
-    userID, ok := c.Locals("user_id").(uint)
-    if !ok {
-        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-    }
+	// ดึง UserID จาก Context
+	userID, ok := c.Locals("user_id").(uint)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
 
-    // เรียกใช้ Use Case เพื่อกู้คืนโน้ต
-    if err := h.noteUseCase.RestoreNoteById(uint(noteID), userID); err != nil {
-        if err.Error() == "note not found or does not belong to the user" {
-            return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "You are not authorized to restore this note"})
-        }
-        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-            "error": fmt.Sprintf("Failed to restore note with ID %d: %v", noteID, err),
-        })
-    }
+	// เรียกใช้ Use Case เพื่อกู้คืนโน้ต
+	if err := h.noteUseCase.RestoreNoteById(uint(noteID), userID); err != nil {
+		if err.Error() == "note not found or does not belong to the user" {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "You are not authorized to restore this note"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to restore note with ID %d: %v", noteID, err),
+		})
+	}
 
-    return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Note restored successfully"})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Note restored successfully"})
 }
-

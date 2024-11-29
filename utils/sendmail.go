@@ -2,16 +2,28 @@ package utils
 
 import (
 	"gopkg.in/gomail.v2"
+	"log"
+	"os"
 )
 
 func SendEmail(to, subject, body string) error {
-	m := gomail.NewMessage()
-	m.SetHeader("From", "your_email@example.com")
-	m.SetHeader("To", to)
-	m.SetHeader("Subject", subject)
-	m.SetBody("text/plain", body)
+	message := gomail.NewMessage()
+	fromEmail := os.Getenv("MAIL_EMAIL")
+	fromPassword := os.Getenv("MAIL_PASSWORD")
 
-	d := gomail.NewDialer("smtp.example.com", 587, "your_email@example.com", "your_password")
+	message.SetHeader("From", fromEmail)
+	message.SetHeader("To", to)
+	message.SetHeader("Subject", subject)
+	message.SetBody("text/plain", body)
 
-	return d.DialAndSend(m)
+	d := gomail.NewDialer("smtp.gmail.com", 587, fromEmail, fromPassword)
+
+	log.Printf("Sending email...\nFrom: %s\nTo: %s\nSubject: %s\nBody: %s\n", fromEmail, to, subject, body)
+
+	if err := d.DialAndSend(message); err != nil {
+		log.Printf("Failed to send email to %s: %v", to, err)
+		return err
+	}
+	log.Printf("Email successfully sent to %s", to)
+	return nil
 }

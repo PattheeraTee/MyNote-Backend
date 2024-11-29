@@ -6,11 +6,14 @@ import (
 
 type NoteRepository interface {
 	CreateNote(note *entities.Note) error
-	GetAllNoteByUserId(id uint) ([]entities.Note, error)
-	GetNoteById(id uint) (*entities.Note, error)
-	UpdateNote(note *entities.Note) error
-	DeleteNoteById(id uint) error
-	RestoreNoteById(id uint) error 
+	GetAllNoteByUserId(userID uint) ([]entities.Note, error)
+	GetNoteById(noteID uint) (*entities.Note, error)
+	UpdateNoteColor(noteID uint, userID uint, color string) error 
+	UpdateNotePriority(noteID uint, userID uint, priority int) error 
+	UpdateNoteTitleAndContent(note *entities.Note) error 
+	UpdateNoteStatus(noteID uint, userID uint, isTodo *bool, isAllDone *bool) error
+	DeleteNoteById(noteID uint) error
+	RestoreNoteById(noteID uint) error 
 	AddTagToNote(noteID uint, tagID uint, userID uint) error
 	RemoveTagFromNote(noteID uint, tagID uint, userID uint) error
 	GetNoteByIdAndUser(noteID uint, userID uint) (*entities.Note, error)

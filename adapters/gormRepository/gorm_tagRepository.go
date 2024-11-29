@@ -82,11 +82,11 @@ func (r *GormTagRepository) DeleteTag(tagID, userID uint) error {
     return nil
 }
 
-func (r *GormTagRepository) GetTagById(id uint) (*entities.Tag, error) {
+func (r *GormTagRepository) GetTagById(tagID uint) (*entities.Tag, error) {
 	var tag entities.Tag
     if err := r.db.Preload("Notes", func(db *gorm.DB) *gorm.DB {
         return db.Select("notes.note_id")
-    }).First(&tag, id).Error; err != nil {
+    }).First(&tag, tagID).Error; err != nil {
         return nil, err
     }
     return &tag, nil

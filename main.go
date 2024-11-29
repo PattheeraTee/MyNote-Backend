@@ -28,7 +28,6 @@ func main() {
 		&entities.Note{},
 		&entities.Reminder{},
 		&entities.Tag{},
-		// &entities.NoteTag{},
 		&entities.ShareNote{},
 		&entities.Event{},
 		&entities.ToDo{},
@@ -42,15 +41,18 @@ func main() {
 	userRepo := gormRepository.NewGormUserRepository(database)
 	noteRepo := gormRepository.NewGormNoteRepository(database)
 	tagRepo := gormRepository.NewGormTagRepository(database)
+	reminderRepo := gormRepository.NewGormReminderRepository(database)
 
 	userService := service.NewUserService(userRepo)
 	noteService := service.NewNoteService(noteRepo)
 	tagService := service.NewTagService(tagRepo)
+	reminderService := service.NewReminderService(reminderRepo, noteRepo, userRepo)
 
 	// สร้าง Handlers สำหรับ HTTP
 	userHandler := httpHandler.NewHttpUserHandler(userService)
 	noteHandler := httpHandler.NewHttpNoteHandler(noteService)
 	tagHandler := httpHandler.NewHttpTagHandler(tagService)
+	reminderHandler := httpHandler.NewHttpReminderHandler(reminderService)
 
 	// สร้าง Fiber App และเพิ่ม Middleware
 	app := fiber.New()
@@ -72,11 +74,24 @@ func main() {
 	//********************************************
 	app.Post("/note",middleware.AuthMiddleware, noteHandler.CreateNoteHandler)    // สร้าง note	
 	app.Get("/note/:userid",middleware.AuthMiddleware, noteHandler.GetAllNoteHandler) // ดู note
-	app.Put("/note/:noteid", middleware.AuthMiddleware,noteHandler.UpdateNoteHandler) // แก้ไข note
-	app.Post("/note/add-tag",middleware.AuthMiddleware, noteHandler.AddTagToNoteHandler)
-	app.Post("/note/remove-tag",middleware.AuthMiddleware,  noteHandler.RemoveTagFromNoteHandler)
+	app.Put("/note/color/:noteid", middleware.AuthMiddleware, noteHandler.UpdateColorHandler)
+	app.Put("/note/priority/:noteid", middleware.AuthMiddleware, noteHandler.UpdatePriorityHandler)
+	app.Put("/note/title-content/:noteid", middleware.AuthMiddleware, noteHandler.UpdateTitleAndContentHandler)
+	app.Put("/note/status/:noteid", middleware.AuthMiddleware, noteHandler.UpdateStatusHandler)
 	app.Delete("/note/:noteid",middleware.AuthMiddleware, noteHandler.DeleteNoteHandler) // ลบ note
 	app.Put("/note/restore/:noteid",middleware.AuthMiddleware, noteHandler.RestoreNoteHandler)
+	//********************************************
+	// Add Tag to Note And Remove Tag from Note
+	//********************************************
+	app.Post("/note/add-tag",middleware.AuthMiddleware, noteHandler.AddTagToNoteHandler)
+	app.Post("/note/remove-tag",middleware.AuthMiddleware,  noteHandler.RemoveTagFromNoteHandler)
+	//********************************************
+	// Reminder
+	//********************************************
+	app.Post("/note/reminder/:noteid",middleware.AuthMiddleware, reminderHandler.AddReminderHandler)
+	app.Get("/note/reminder/:noteid",middleware.AuthMiddleware, reminderHandler.GetRemindersHandler)
+	app.Put("/reminder/:reminderid",middleware.AuthMiddleware, reminderHandler.UpdateReminderHandler)
+	app.Delete("/reminder/:reminderid",middleware.AuthMiddleware, reminderHandler.DeleteReminderHandler)
 
 	//********************************************
 	// Tag

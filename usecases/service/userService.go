@@ -150,3 +150,4 @@ func (s *UserService) ResetPassword(tokenString string, newPassword string) erro
 func (s *UserService) GetUser(userID uint) (*entities.User, error) {
 	return s.repo.GetUserById(userID)
 }
+
